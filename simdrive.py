@@ -52,6 +52,7 @@ import utils.townChooser as tc
 import utils.folderUtils as folderUtils
 from actors.vehicle import Vehicle
 from controls.dlAgent import DLModelAgent
+from controls.dlAgent2 import DLModelAgent2
 from controls.forwardAgent import ForwardAgent
 from controls.g29Control import g29Control
 from controls.joystickControl import JoystickControl
@@ -317,7 +318,7 @@ try:
         lastVehicleControlCmd = None
 
         measurements["velocity"] = vehicleState.getSpeed_ms()
-        measurements["obstacle_dist"] = obstacleSensor.getDistance()
+        measurements["obstacle"] = obstacleSensor.getDistance()
 
         dataNav = navigator.nextDirection()
         measurements['dir'] = dataNav['dir']
@@ -366,6 +367,7 @@ try:
 finally:
     if driveMonitor is not None:
         driveMonitor.close()
+        driveMonitor.dispose()
     recorder.dispose()
 
     sim_world.destroy()

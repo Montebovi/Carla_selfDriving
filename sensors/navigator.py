@@ -56,7 +56,7 @@ class Navigator:
 
     def setDestination(self, destPoint):
         self._destPoint = carla.Transform(destPoint.location, destPoint.rotation)
-        self._destPoint.location.z = 2.3
+        self._destPoint.location.z = 2.5
         self._destPoint.rotation.yaw = self._destPoint.rotation.yaw + 90
 
     def _putCone(self):
@@ -145,7 +145,7 @@ class Navigator:
 
         if self._lazyMode:
             distanza = self.__distPoints(carla.Transform(self._currentPoint), self._nextJoinPoint)
-            if (distanza is not None) and (distanza < 40):
+            if (distanza is not None) and (distanza < 35):
                 self._lastDirection = d
             else:
                 self._lastDirection = [0, 1, 0]

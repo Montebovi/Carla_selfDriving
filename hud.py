@@ -111,6 +111,7 @@ class HUD():
             ]
             if self._drivemonitor is not None:
                 data_driver_monitor = self._drivemonitor.get_info()
+                totalJoinPoints = data_driver_monitor["totalJoinPoints"]
                 self._info_text += ["------------------------------",
                                     f"Dist. traveled: {(data_driver_monitor['meters_traveled']/1000):.2f} km",
                                     f"max speed: {data_driver_monitor['max_speed']:.2f} m/s",
@@ -118,7 +119,7 @@ class HUD():
                                     f"collisions: {data_driver_monitor['total_collisions']}",
                                     f"obstacles: {data_driver_monitor['total_obstacles']}",
                                     f"lane invasions: {data_driver_monitor['total_lane_invasions']}",
-                                    f"wrong dir. count: {data_driver_monitor['wrong_direction_count']}",
+                                    f"wrong dir. count: {data_driver_monitor['wrong_direction_count']} out of {totalJoinPoints}",
                                     f"repos count: {data_driver_monitor['repos_count']}"
                                     ]
 

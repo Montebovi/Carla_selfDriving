@@ -46,7 +46,7 @@ class TrafficGenerator():
                 blueprint.set_attribute('color', color)
                 vehicle = self.world.spawn_actor(blueprint, p)
                 vehicle.set_autopilot(True)
-                self.trafficManager.vehicle_percentage_speed_difference(vehicle, -30.0)
+                self.trafficManager.vehicle_percentage_speed_difference(vehicle, -20.0)
                 self._vehiclesList.append(vehicle)
 
     def _distance(self, p, pointToExclude):

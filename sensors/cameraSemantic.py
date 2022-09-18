@@ -40,11 +40,11 @@ class CameraSemantic(RecordableObject):
         cam_bp.set_attribute("fov", str(fov))
 
         if position == 'left':
-            loc = carla.Location(x=2.5, y=-1, z=1.5)
-            rot = carla.Rotation(pitch=-15.0, yaw=30)
+            loc = carla.Location(x=2.8, y=-1, z=1.5)
+            rot = carla.Rotation(pitch=-20.0, yaw=35)
         elif position == 'right':
-            loc = carla.Location(x=2.5, y=1, z=1.5)
-            rot = carla.Rotation(pitch=-15.0, yaw=-30)
+            loc = carla.Location(x=2.8, y=1, z=1.5)
+            rot = carla.Rotation(pitch=-20.0, yaw=-35)
         else:
             loc = carla.Location(x=3.5, y=0, z=1.8)
             rot = carla.Rotation(pitch=-22.0)

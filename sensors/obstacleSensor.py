@@ -5,6 +5,7 @@ import weakref
 import cv2
 from datetime import datetime
 import numpy as np
+from numpy.linalg import norm
 
 ########################################################################################################################
 # carla
@@ -27,13 +28,13 @@ class ObstacleSensor(RecordableObject):
         self._parent = parent_actor
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.obstacle')
-        bp.set_attribute('distance', '10')
+        bp.set_attribute('distance', '20')
         bp.set_attribute('hit_radius', '1')
         # bp.set_attribute('debug_linetrace', 'true')
         if only_dynamics:
             bp.set_attribute('only_dynamics', 'true')
 
-        sensor_transform = carla.Transform(carla.Location(x=1.6, z=1.3), carla.Rotation(yaw=0))
+        sensor_transform = carla.Transform(carla.Location(x=2.0, z=1.3), carla.Rotation(yaw=0))
         # sensor_transform = carla.Transform()
 
         self.sensor = world.spawn_actor(bp, sensor_transform, attach_to=self._parent)
@@ -52,7 +53,25 @@ class ObstacleSensor(RecordableObject):
             return
         self._distance = event.distance
         self._other_actor = event.other_actor
+
         # print("ObstacleSensor: ", event.distance)
+
+    def relativeVelocity(self):
+        if self._other_actor is None:
+            return 0
+
+        other_velocity = self._other_actor.get_velocity()
+        other_velocity = [other_velocity.x, other_velocity.y]
+        parentVelocity = self._parent.get_velocity()
+        parentVelocity = [parentVelocity.x, parentVelocity.y]
+
+        delta = [parentVelocity[0] - other_velocity[0], parentVelocity[1] - other_velocity[1]]
+        cosine = np.dot(parentVelocity, delta) / (norm(parentVelocity) * norm(delta))
+        k = norm(delta) * cosine
+        # print(f"d:{k:.6f}  delta: {delta} - sim: {cosine:.4f}")
+        if k is None:
+            return 0
+        return k
 
     def initRecording(self, baseDir):
         super(ObstacleSensor, self).initRecording(baseDir)
@@ -66,14 +85,17 @@ class ObstacleSensor(RecordableObject):
     def getLastData(self):
         if self._distance is None:
             return None
-        return [self._distance,self._other_actor.type_id]
+        return [self._distance, self._other_actor.type_id]
 
     def saveDataFrame(self, timestamp):
         if self._distance is not None:
-            data = [self._distance]
+            relDist = self.relativeVelocity()
+            # print(f"other_velocity: {other_velocity}")
+            data = [self._distance, relDist]
         else:
-            data = [1000]
-        # print("ObstacleSensor: ",data)
+            data = [1000, 0]
+            # print("ObstacleSensor: ",data)
+        # print("obstacle:", data)
         np.save(self._itsFile, {"timestamp": timestamp, "data": data, "currentDateTime": datetime.now()})
         self._distance = None
 
@@ -83,7 +105,8 @@ class ObstacleSensor(RecordableObject):
 
     def getDistance(self):
         if self._distance is not None:
-            data = self._distance
+            relDist = self.relativeVelocity()
+            data = [self._distance, relDist]
         else:
-            data = 1000
+            data = [1000, 0]
         return data

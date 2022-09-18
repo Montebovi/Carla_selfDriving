@@ -38,6 +38,7 @@ class DriveMonitor:
         self._reachedTargets = 0
         self._repositioningCounter = 0
         self._wrongDirectionCounter = 0
+        self._totalJoinPoints = 0
         self._collisionHistory = []
         self._obstacleHistory = []
         self._laneInvasionHistory = []
@@ -46,6 +47,7 @@ class DriveMonitor:
         self._precRoute = None
         self._lastNotIdleTime = 0
         self._lastCollisionActorName = None
+        self._lastCollisionActorId = None
         self._lastCollisionIntensity = None
         self._lastCollisionLoc = None
         self._last_obstacle_dist = None
@@ -53,6 +55,7 @@ class DriveMonitor:
         self._lastLocation = None
         self._lastInvasion = None
         self._filterWrongDirTime = 0
+        self._lastJoinPoint = None
 
         weak_self = weakref.ref(self)
 
@@ -80,16 +83,27 @@ class DriveMonitor:
         filename = os.path.join(self._pathForData, self._name + ".npy")
         self._its_file = open(filename, "ba+")
 
+    def dispose(self):
+        self.collisionSensor.stop()
+        self.collisionSensor.destroy()
+        self._obstacleSensor.stop()
+        self._obstacleSensor.destroy()
+        self._lane_invasion_sensor.stop()
+        self._lane_invasion_sensor.destroy()
+
     def close(self):
         data = dict()
         data["duration"] = self._duration
         data["max_speed"] = self._maxSpeed
         data["mean_speed"] = self._meanSpeed
         data["meters_traveled"] = self._meters_traveled
-        data["collisions"] = [(el[0], el[1], el[2]) for el in self._collisionHistory]
+        data["collisions"] = [(el[0], el[1], el[2], el[4]) for el in self._collisionHistory]
         data["obstacles"] = self._obstacleHistory
+        data["lane_invasions"] = self._laneInvasionHistory
         data["reached_targets"] = self._reachedTargets
         data["wrong_direction_count"] = self._wrongDirectionCounter
+        data["totalJoinPoints"] = self._totalJoinPoints
+        data["repos_count"] = self._repositioningCounter
         np.save(self._its_file, data)
         self._its_file.close()
 
@@ -102,6 +116,7 @@ class DriveMonitor:
         data["total_lane_invasions"] = len(self._laneInvasionHistory)
         data["reached_targets"] = self._reachedTargets
         data["wrong_direction_count"] = self._wrongDirectionCounter
+        data["totalJoinPoints"] = self._totalJoinPoints
         data["repos_count"] = self._repositioningCounter
         return data
 
@@ -112,9 +127,10 @@ class DriveMonitor:
         if not self:
             return
         lane_types = set(x.type for x in event.crossed_lane_markings)
-        self._lastInvasion = lane_types
+        self._lastInvasion = [(str(type(a)), a.name) for a in lane_types]
+        # print(self._lastInvasion)
         self._filterWrongDirTime = time.time() + 1
-        #text = ['%r' % str(x).split()[-1] for x in lane_types]
+        # text = ['%r' % str(x).split()[-1] for x in lane_types]
         # print('Crossed line %s' % ' and '.join(text))
         # print(lane_types)
 
@@ -133,6 +149,7 @@ class DriveMonitor:
             return
         impulse = event.normal_impulse
         self._lastCollisionActorName = DriveMonitor.get_actor_display_name(event.other_actor)
+        self._lastCollisionActorId = event.other_actor.type_id
         self._lastCollisionIntensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
         self._lastCollisionLoc = self._vehicle.actor.get_location()
 
@@ -164,13 +181,13 @@ class DriveMonitor:
         if self._lastCollisionLoc is None:
             if len(self._collisionHistory) > 0:
                 lastCollision = self._collisionHistory[-1]
-                if not lastCollision[4]:
+                if not lastCollision[5]:
                     d = self.__distPoints(lastCollision[3], vehicleLoc)
                     collisionClosed = d > 2
                     if collisionClosed:
                         # print("exited from the point of collision")
                         self._collisionHistory[-1] = (lastCollision[0], lastCollision[1],
-                                                      lastCollision[2], lastCollision[3], True)
+                                                      lastCollision[2], lastCollision[3], lastCollision[4], True)
         else:
             toAppendCollision = False
             if len(self._collisionHistory) == 0:
@@ -179,18 +196,19 @@ class DriveMonitor:
                 lastCollision = self._collisionHistory[-1]
                 if lastCollision[1] != self._lastCollisionActorName:  # collisione con altro oggetto
                     toAppendCollision = True
-                elif lastCollision[4]:  # la collisione è chiusa
+                elif lastCollision[5]:  # la collisione è chiusa
                     toAppendCollision = True
             if toAppendCollision:
                 self._collisionHistory.append(
                     (timestamp, self._lastCollisionActorName, self._lastCollisionIntensity, self._lastCollisionLoc,
-                     False))
+                     self._lastCollisionActorId, False))
                 # print(
                 #     f"duration: {self._duration} - max speed: {self._maxSpeed} - mean speed: {self._meanSpeed} - mt: {self._meters_traveled}")
                 # print(f"Collision with: {self._lastCollisionActorName}")
 
         self._lastCollisionIntensity = None
         self._lastCollisionActorName = None
+        self._lastCollisionActorId = None
         self._lastCollisionLoc = None
 
         if self._last_obstacle_dist is not None:
@@ -206,14 +224,14 @@ class DriveMonitor:
 
             if toAppend:
                 self._obstacleHistory.append((timestamp, self._last_obstacle_dist,
-                                              self._last_obstacle_actor.type_id, self._last_obstacle_actor.id,))
+                                              self._last_obstacle_actor.type_id, self._last_obstacle_actor.id))
                 # print(f"Obstacle: {self._last_obstacle_actor.type_id} - at {self._last_obstacle_dist} mt")
 
         self._last_obstacle_dist = None
         self._last_obstacle_actor_typeid = None
 
         if (self._lastInvasion is not None):
-            self._laneInvasionHistory.append((timestamp,actualTime,self._lastInvasion))
+            self._laneInvasionHistory.append((timestamp, actualTime, self._lastInvasion))
             self._lastInvasion = None
 
         # self.history.append((event.frame, intensity))
@@ -250,6 +268,21 @@ class DriveMonitor:
 
     def notifyRoute(self, lastRoute):
         actual = [w[0] for w in lastRoute]
+
+        # firstJoin = next((x for x in actual if x.is_junction), None)
+        if len(actual) > 0:
+            if actual[0].is_junction:
+                i = 0
+                # while actual[i].is_junction and i < len(actual):
+                #     i = i+1
+                if actual[i] != self._lastJoinPoint:
+                    d = 1000
+                    if self._lastJoinPoint is not None:
+                        d = self.__distPoints(self._lastJoinPoint.transform.location, actual[i].transform.location)
+                    if d > 15:
+                        self._totalJoinPoints = self._totalJoinPoints + 1
+                        # print("join points: " + str(self._totalJoinPoints))
+                    self._lastJoinPoint = actual[i]
 
         t = self._vehicle.actor.get_transform()
         currentPoint = t.location

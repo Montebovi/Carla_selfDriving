@@ -30,7 +30,7 @@ class SimWorld(object):
 
         semafori =self.world.get_actors().filter('traffic.traffic_light*')
         for s in semafori:
-            s.set_red_time(12)
+            s.set_red_time(15)
 
     def setTrafficLights(self):
 
@@ -40,7 +40,7 @@ class SimWorld(object):
             stato = s.get_state()
             if stato == carla.TrafficLightState.Red:
                 tempo = s.get_elapsed_time()
-                if tempo > 10:
+                if tempo > 12:
                     s.set_state(carla.TrafficLightState.Green)
 
     def addObject(self, actor):

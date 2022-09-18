@@ -34,7 +34,7 @@ class DLModelAgent:
             return None
 
         current_speed = measurements['velocity']
-        obstacle_dist = measurements["obstacle_dist"]
+        obstacle_dist = measurements["obstacle"]
         directions = measurements['dir']
         joinDist = measurements['dirDist']
         if joinDist is None:
@@ -43,7 +43,9 @@ class DLModelAgent:
         # current_data = [measurements['velocity'], measurements['steer']]
         current_data = [current_speed/MAX_SPEED]
         directionData = directions + [joinDist/(1+joinDist)]
-        obstacle_distdata = [obstacle_dist/(1+obstacle_dist)]
+        if math.isnan(obstacle_dist[1]):
+            obstacle_dist[1]=0
+        obstacle_distdata = [obstacle_dist[0]/(1+obstacle_dist[0]), obstacle_dist[1]/(1+abs(obstacle_dist[1]))]
 
         input = sensors_data
         control = carla.VehicleControl()
@@ -73,17 +75,17 @@ class DLModelAgent:
             control.brake = brake.item()
         # control.brake = 0
 
-        if control.brake < 0.1 and control.throttle > 0.1:
+        if control.brake < 0.1:
+             control.brake = 0.0
+        if control.throttle > 0.2:
             control.brake = 0.0
-        # if control.throttle > control.brake:
-        #     control.brake = 0.0
-
-        # if control.brake > control.throttle:
-        #     control.throttle = 0.0
-
-        # We limit speed to 35 km/h to avoid
-        if current_speed > 11.0 and brake < 0.2 and control.throttle > 0.6:
-            control.throttle = 0.6
+        #
+        # # if control.brake > control.throttle:
+        # #     control.throttle = 0.0
+        #
+        # # We limit speed to 35 km/h to avoid
+        if current_speed > 13.0 and brake < 0.2 and control.throttle > 0.65:
+            control.throttle = 0.65
 
         control.hand_brake = 0
         control.reverse = 0
